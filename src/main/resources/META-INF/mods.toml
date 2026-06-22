@@ -1,0 +1,32 @@
+# See https://docs.minecraftforge.net/en/1.21.x/gettingstarted/modfiles/#modstoml
+# There are lots of things you can do with the mods.toml, and not all fields are included with this MDK
+# References: https://github.com/MinecraftForge/MDKExamples
+
+modLoader="javafml"
+loaderVersion="[61,)"
+license="All Rights Reserved"
+
+[[mods]]
+# Muss exakt mit dem MODID-String aus deiner ItemMagnetMod.java übereinstimmen!
+modId="itemmagnetmod2"
+version="1.0.0"
+displayName="Item Magnet"
+authors="Finn" 
+
+description='''Deine erste eigene Forge-Mod: Ein praktischer Item-Magnet, der Gegenstände auf dem Boden magisch anzieht!'''
+
+# Hier definieren wir, dass die Mod Forge benötigt
+[[dependencies.itemmagnetmod2]]
+    modId="forge"
+    mandatory=true
+    versionRange="[61,)"
+    ordering="NONE"
+    side="BOTH"
+
+# Hier definieren wir, dass die Mod Minecraft benötigt
+[[dependencies.itemmagnetmod2]]
+    modId="minecraft"
+    mandatory=true
+    versionRange="[1.21.11,1.22)" # Fehler behoben: Gültige Reichweite von 1.21.11 bis unter 1.22
+    ordering="NONE"
+    side="BOTH"
