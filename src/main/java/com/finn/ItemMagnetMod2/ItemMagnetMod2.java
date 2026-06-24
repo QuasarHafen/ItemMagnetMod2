@@ -1,7 +1,6 @@
 package com.finn.ItemMagnetMod2;
 
 import com.mojang.logging.LogUtils;
-import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.CreativeModeTabs;
 import net.minecraft.world.item.Item;
@@ -63,24 +62,28 @@ public final class ItemMagnetMod2 {
         }
     }
 
-    // Client-seitiger Code (alles, was Grafik, Ton oder Chat-Nachrichten betrifft)
-    @Mod.EventBusSubscriber(modid = MODID, value = Dist.CLIENT)
+    // Client-seitiger Code (Alles für den Ladebildschirm)
+    @Mod.EventBusSubscriber(modid = MODID, bus = Mod.EventBusSubscriber.Bus.MOD, value = Dist.CLIENT)
     public static class ClientModEvents {
         @SubscribeEvent
         public static void onClientSetup(FMLClientSetupEvent event) {
-            LOGGER.info("Finns Item-Magnet Mod läuft!");
+            // Wird im Ladebildschirm aufgerufen – perfekt für Registrierungen von Client-Dingen
+            LOGGER.info("Finns Item-Magnet Mod: Client Setup geladen!");
+        }
+    }
 
-            event.enqueueWork(() -> {
-                Minecraft mc = Minecraft.getInstance();
-                if (mc.player != null) {
-                    // displayClientMessage(Component, boolean) ist in vielen Forge/Minecraft-Versionen verfügbar
-                    // false = normale Chat-Nachricht (kein ActionBar)
-                    mc.player.displayClientMessage(
-                        Component.literal("Hallo Finn! Deine Magnet-Mod wurde erfolgreich geladen."),
+    // Spiel-Events (Alles, was passiert, während das Spiel aktiv läuft)
+    @Mod.EventBusSubscriber(modid = MODID, bus = Mod.EventBusSubscriber.Bus.FORGE, value = Dist.CLIENT)
+    public static class GameEvents {
+        @SubscribeEvent
+        public static void onPlayerJoin(net.minecraftforge.event.entity.EntityJoinLevelEvent event) {
+            // Wir prüfen, ob ein Spieler die Welt betritt und ob wir auf dem Client sind
+            if (event.getEntity() instanceof net.minecraft.world.entity.player.Player player && event.getLevel().isClientSide()) {
+                player.displayClientMessage(
+                        Component.literal("§bHallo Finn! Deine Magnet-Mod wurde erfolgreich geladen. §a[Phase 1 Aktiv]"),
                         false
-                    );
-                }
-            });
+                );
+            }
         }
     }
 }
