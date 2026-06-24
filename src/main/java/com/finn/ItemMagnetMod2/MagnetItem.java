@@ -1,17 +1,10 @@
 package com.finn.ItemMagnetMod2;
 
-import net.minecraft.world.entity.Entity;
-import net.minecraft.world.entity.item.ItemEntity;
-import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.phys.AABB;
-import net.minecraft.world.phys.Vec3;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.world.item.component.CustomData;
 import org.jspecify.annotations.NonNull;
-
-import java.util.List;
 
 public class MagnetItem extends Item {
 
@@ -21,43 +14,53 @@ public class MagnetItem extends Item {
 
     // 1. Rechtsklick zum Ein-/Ausschalten
     @Override
-    public net.minecraft.world.@NonNull InteractionResult use(net.minecraft.world.level.Level level, net.minecraft.world.entity.player.Player player, net.minecraft.world.@NonNull InteractionHand hand) {
+    public net.minecraft.world.InteractionResult use(net.minecraft.world.level.Level level, net.minecraft.world.entity.player.Player player, net.minecraft.world.InteractionHand hand) {
         net.minecraft.world.item.ItemStack realStack = player.getItemInHand(hand);
 
         if (!level.isClientSide()) {
-            // 2. Zustand mit dem echten Item umdrehen
             boolean currentState = isActive(realStack);
             setMagnetState(realStack, !currentState);
 
-            // 3. Nachricht an den Spieler senden
             if (!currentState) {
-                // 'true' schickt die Nachricht elegant direkt über die Hotbar (Aktionsleiste)
                 player.displayClientMessage(net.minecraft.network.chat.Component.literal("§aMagnet aktiviert!"), true);
+                // Ein knackiges klicken mit höherem Pitch (1.2F) für "An"
+                level.playSound(null, player.getX(), player.getY(), player.getZ(),
+                        net.minecraft.sounds.SoundEvents.LEVER_CLICK, net.minecraft.sounds.SoundSource.PLAYERS, 1.0F, 1.2F);
             } else {
                 player.displayClientMessage(net.minecraft.network.chat.Component.literal("§cMagnet deaktiviert!"), true);
+                // Dasselbe Klicken mit tiefem Pitch (0.8F) für "Aus"
+                level.playSound(null, player.getX(), player.getY(), player.getZ(),
+                        net.minecraft.sounds.SoundEvents.LEVER_CLICK, net.minecraft.sounds.SoundSource.PLAYERS, 1.0F, 0.8F);
             }
         }
 
-        // 4. Erfolg an Minecraft zurückmelden (steuert die Arm-Animation)
         return net.minecraft.world.InteractionResult.SUCCESS;
     }
 
     @Override
-    public void inventoryTick(@NonNull ItemStack stack, net.minecraft.server.level.@NonNull ServerLevel level, @NonNull Entity entity, @org.jetbrains.annotations.Nullable net.minecraft.world.entity.EquipmentSlot slot) {
-        // Da 'level' jetzt ein ServerLevel ist, fällt die Client-Abfrage weg!
-        if (entity instanceof Player player && isActive(stack)) {
+    public void inventoryTick(net.minecraft.world.item.ItemStack stack, net.minecraft.server.level.@NonNull ServerLevel level, net.minecraft.world.entity.Entity entity, @org.jetbrains.annotations.Nullable net.minecraft.world.entity.EquipmentSlot slot) {
+        if (entity instanceof net.minecraft.world.entity.player.Player player && isActive(stack)) {
 
             double range = 5.0; // Reichweite von Phase 1
-            AABB area = player.getBoundingBox().inflate(range);
-            List<ItemEntity> items = level.getEntitiesOfClass(ItemEntity.class, area);
+            net.minecraft.world.phys.AABB area = player.getBoundingBox().inflate(range);
+            java.util.List<net.minecraft.world.entity.item.ItemEntity> items = level.getEntitiesOfClass(net.minecraft.world.entity.item.ItemEntity.class, area);
 
-            for (ItemEntity item : items) {
-                // Nur Items anziehen, die noch existieren und eingesammelt werden können
+            for (net.minecraft.world.entity.item.ItemEntity item : items) {
+                // Nur Items bearbeiten, die noch leben und eingesammelt werden können
                 if (item.isAlive() && !item.hasPickUpDelay()) {
-                    // Richtungsvektor berechnen
-                    Vec3 motion = player.position().subtract(item.position()).normalize().scale(0.15);
-                    // Dem Item den Schubs geben
+
+                    // 1. Richtungsvektor berechnen & Item anziehen
+                    net.minecraft.world.phys.Vec3 motion = player.position().subtract(item.position()).normalize().scale(0.15);
                     item.setDeltaMovement(item.getDeltaMovement().add(motion));
+
+                    // 2. Partikel-Spur erzeugen (Direkt auf 'level' aufrufbar, da es ein ServerLevel ist)
+                    level.sendParticles(
+                            net.minecraft.core.particles.ParticleTypes.WITCH,       // Lila Magie-Partikel
+                            item.getX(), item.getY() + 0.2, item.getZ(),    // Position direkt beim Item
+                            3,                                                      // Anzahl der Partikel pro Tick
+                            0.1, 0.1, 0.1,                          // Leicht gestreut in alle Richtungen
+                            0.0                                                     // Geschwindigkeit (bleiben am Item)
+                    );
                 }
             }
         }
