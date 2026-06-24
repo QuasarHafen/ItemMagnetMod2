@@ -14,7 +14,7 @@ public class MagnetItem extends Item {
 
     // 1. Rechtsklick zum Ein-/Ausschalten
     @Override
-    public net.minecraft.world.InteractionResult use(net.minecraft.world.level.Level level, net.minecraft.world.entity.player.Player player, net.minecraft.world.InteractionHand hand) {
+    public net.minecraft.world.@NonNull InteractionResult use(net.minecraft.world.level.Level level, net.minecraft.world.entity.player.Player player, net.minecraft.world.@NonNull InteractionHand hand) {
         net.minecraft.world.item.ItemStack realStack = player.getItemInHand(hand);
 
         if (!level.isClientSide()) {
@@ -38,7 +38,7 @@ public class MagnetItem extends Item {
     }
 
     @Override
-    public void inventoryTick(net.minecraft.world.item.ItemStack stack, net.minecraft.server.level.@NonNull ServerLevel level, net.minecraft.world.entity.Entity entity, @org.jetbrains.annotations.Nullable net.minecraft.world.entity.EquipmentSlot slot) {
+    public void inventoryTick(net.minecraft.world.item.@NonNull ItemStack stack, net.minecraft.server.level.@NonNull ServerLevel level, net.minecraft.world.entity.@NonNull Entity entity, @org.jetbrains.annotations.Nullable net.minecraft.world.entity.EquipmentSlot slot) {
         if (entity instanceof net.minecraft.world.entity.player.Player player && isActive(stack)) {
 
             double range = 5.0; // Reichweite von Phase 1
