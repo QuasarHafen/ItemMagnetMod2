@@ -7,7 +7,7 @@ loaderVersion="[61,)"
 license="All Rights Reserved"
 
 [[mods]]
-# Muss exakt mit dem MODID-String aus deiner ItemMagnetMod.java übereinstimmen!
+# Muss exakt mit dem MODID-String aus deiner ItemMagnetMod2.java übereinstimmen!
 modId="itemmagnetmod2"
 version="1.2.0"
 displayName="Item Magnet"
@@ -27,6 +27,6 @@ description='''Deine erste eigene Forge-Mod: Ein praktischer Item-Magnet, der Ge
 [[dependencies.itemmagnetmod2]]
     modId="minecraft"
     mandatory=true
-    versionRange="[1.21.11,1.22)" # Fehler behoben: Gültige Reichweite von 1.21.11 bis unter 1.22
+    versionRange="[1.21.11,)"
     ordering="NONE"
     side="BOTH"

@@ -1,20 +1,31 @@
 package com.finn.ItemMagnetMod2;
 
-import net.minecraft.world.item.Item;
-import net.minecraft.world.item.ItemStack;
 import net.minecraft.core.component.DataComponents;
+import net.minecraft.core.particles.ParticleTypes;
+import net.minecraft.nbt.CompoundTag;
 import net.minecraft.world.item.component.CustomData;
-import org.jspecify.annotations.NonNull;
+import net.minecraft.world.phys.AABB;
+import net.minecraft.world.phys.Vec3;
+import org.jetbrains.annotations.NotNull;
 
-public class MagnetItem extends Item {
+import java.util.List;
+
+public class MagnetItem extends net.minecraft.world.item.Item {
+
+    // Die zentrale Reichweite (6 Blöcke laut deiner Liste)
+    public static final double MAGNET_RANGE = 6.0;
 
     public MagnetItem(Properties properties) {
-        super(properties.stacksTo(1)); // Magneten sollten nicht stapelbar sein
+        super(properties);
     }
 
-    // 1. Rechtsklick zum Ein-/Ausschalten
+    // 1. DIE USE-METHODE (Rechtsklick Ein/Aus)
     @Override
-    public net.minecraft.world.@NonNull InteractionResult use(net.minecraft.world.level.Level level, net.minecraft.world.entity.player.Player player, net.minecraft.world.@NonNull InteractionHand hand) {
+    public net.minecraft.world.InteractionResult use(
+            net.minecraft.world.level.Level level,
+            net.minecraft.world.entity.player.Player player,
+            net.minecraft.world.InteractionHand hand
+    ) {
         net.minecraft.world.item.ItemStack realStack = player.getItemInHand(hand);
 
         if (!level.isClientSide()) {
@@ -23,68 +34,92 @@ public class MagnetItem extends Item {
 
             if (!currentState) {
                 player.displayClientMessage(net.minecraft.network.chat.Component.literal("§aMagnet aktiviert!"), true);
-                // Ein knackiges klicken mit höherem Pitch (1.2F) für "An"
+                // Hier gehört SoundSource.PLAYERS ans Ende:
                 level.playSound(null, player.getX(), player.getY(), player.getZ(),
                         net.minecraft.sounds.SoundEvents.LEVER_CLICK, net.minecraft.sounds.SoundSource.PLAYERS, 1.0F, 1.2F);
             } else {
                 player.displayClientMessage(net.minecraft.network.chat.Component.literal("§cMagnet deaktiviert!"), true);
-                // Dasselbe Klicken mit tiefem Pitch (0.8F) für "Aus"
+                // Auch hier gehört SoundSource.PLAYERS ans Ende:
                 level.playSound(null, player.getX(), player.getY(), player.getZ(),
                         net.minecraft.sounds.SoundEvents.LEVER_CLICK, net.minecraft.sounds.SoundSource.PLAYERS, 1.0F, 0.8F);
             }
         }
 
+        // Und erst HIER ganz unten wird das InteractionResult zurückgegeben
         return net.minecraft.world.InteractionResult.SUCCESS;
     }
 
+    // 2. DIE INVENTORY-TICK-METHODE (Hier lag der Fehler!)
+    // Minecraft erwartet hier zwingend: Level, Entity, int (slotId), boolean (isSelected)
     @Override
-    public void inventoryTick(net.minecraft.world.item.@NonNull ItemStack stack, net.minecraft.server.level.@NonNull ServerLevel level, net.minecraft.world.entity.@NonNull Entity entity, @org.jetbrains.annotations.Nullable net.minecraft.world.entity.EquipmentSlot slot) {
-        if (entity instanceof net.minecraft.world.entity.player.Player player && isActive(stack)) {
+    public void inventoryTick(
+            @NotNull net.minecraft.world.item.ItemStack stack,
+            @NotNull net.minecraft.world.level.Level level,
+            @NotNull net.minecraft.world.entity.Entity entity,
+            int slotId,
+            boolean isSelected
+        )
+    {
+        // Wir prüfen erst, ob wir auf dem Server sind und der Magnet aktiv ist
+        if (!level.isClientSide() && entity instanceof net.minecraft.world.entity.player.Player player && isActive(stack)) {
 
-            double range = 5.0; // Reichweite von Phase 1
-            net.minecraft.world.phys.AABB area = player.getBoundingBox().inflate(range);
-            java.util.List<net.minecraft.world.entity.item.ItemEntity> items = level.getEntitiesOfClass(net.minecraft.world.entity.item.ItemEntity.class, area);
+            // Da wir sicher auf dem Server sind, casten wir das Level sicher zu ServerLevel für die Partikel
+            net.minecraft.server.level.ServerLevel serverLevel = (net.minecraft.server.level.ServerLevel) level;
+
+            AABB area = player.getBoundingBox().inflate(MAGNET_RANGE);
+            List<net.minecraft.world.entity.item.ItemEntity> items = serverLevel.getEntitiesOfClass(net.minecraft.world.entity.item.ItemEntity.class, area);
 
             for (net.minecraft.world.entity.item.ItemEntity item : items) {
-                // Nur Items bearbeiten, die noch leben und eingesammelt werden können
                 if (item.isAlive() && !item.hasPickUpDelay()) {
 
-                    // 1. Richtungsvektor berechnen & Item anziehen
-                    net.minecraft.world.phys.Vec3 motion = player.position().subtract(item.position()).normalize().scale(0.15);
+                    // Items anziehen
+                    Vec3 motion = player.position().subtract(item.position()).normalize().scale(0.15);
                     item.setDeltaMovement(item.getDeltaMovement().add(motion));
 
-                    // 2. Partikel-Spur erzeugen (Direkt auf 'level' aufrufbar, da es ein ServerLevel ist)
-                    level.sendParticles(
-                            net.minecraft.core.particles.ParticleTypes.WITCH,       // Lila Magie-Partikel
-                            item.getX(), item.getY() + 0.2, item.getZ(),    // Position direkt beim Item
-                            3,                                                      // Anzahl der Partikel pro Tick
-                            0.1, 0.1, 0.1,                          // Leicht gestreut in alle Richtungen
-                            0.0                                                     // Geschwindigkeit (bleiben am Item)
+                    // Partikel über das ServerLevel senden
+                    serverLevel.sendParticles(
+                            ParticleTypes.WITCH,
+                            item.getX(), item.getY() + 0.2, item.getZ(),
+                            3,
+                            0.1, 0.1, 0.1,
+                            0.0
                     );
                 }
             }
         }
     }
 
-    // 3. Macht das Item im Inventar magisch leuchtend, wenn es aktiv ist
+    // 3. DIE HOVER-TEXT-METHODE (Phase 3: Reichweite im Tooltip)
     @Override
-    public boolean isFoil(@NonNull ItemStack stack) {
-        return isActive(stack);
-    }
+    public void appendHoverText(
+            @NotNull net.minecraft.world.item.ItemStack stack,
+            @NotNull net.minecraft.world.item.Item.TooltipContext context,
+            @NotNull List<net.minecraft.network.chat.Component> tooltipComponents,
+            @NotNull net.minecraft.world.item.TooltipFlag tooltipFlag
+    ) {
+        // Reichweite anzeigen
+        tooltipComponents.add(net.minecraft.network.chat.Component.literal("§7Reichweite: §b" + (int) MagnetItem.MAGNET_RANGE + " Blöcke"));
 
-    // Hilfsmethode zum Auslesen (angepasst für das 26.2 Optional-System)
-    private boolean isActive(ItemStack stack) {
-        CustomData customData = stack.get(DataComponents.CUSTOM_DATA);
-        if (customData != null) {
-            // .orElse(false) entpackt das Optional<Boolean> sicher zu einem normalen boolean
-            return customData.copyTag().getBoolean("active").orElse(false);
+        // Zustand anzeigen
+        if (isActive(stack)) {
+            tooltipComponents.add(net.minecraft.network.chat.Component.literal("§7Zustand: §aAktiv"));
+        } else {
+            tooltipComponents.add(net.minecraft.network.chat.Component.literal("§7Zustand: §cInaktiv"));
         }
-        return false;
+
+        super.appendHoverText(stack, context, tooltipComponents, tooltipFlag);
     }
 
-    private void setMagnetState(ItemStack stack, boolean active) {
-        stack.update(DataComponents.CUSTOM_DATA, CustomData.EMPTY, customData ->
-                customData.update(tag -> tag.putBoolean("active", active))
-        );
+    // --- Hilfsmethoden für NBT-Daten ---
+    public boolean isActive(net.minecraft.world.item.ItemStack stack) {
+        CustomData customData = stack.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.EMPTY);
+        return customData.getUnsafe().getBoolean("active");
+    }
+
+    public void setMagnetState(net.minecraft.world.item.ItemStack stack, boolean active) {
+        CustomData customData = stack.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.EMPTY);
+        CompoundTag tag = customData.copyTag();
+        tag.putBoolean("active", active);
+        stack.set(DataComponents.CUSTOM_DATA, CustomData.of(tag));
     }
 }
